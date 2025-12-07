@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -17,9 +18,13 @@ var accountId string
 func init() {
 	apiKey = os.Getenv("GOFILE_API_KEY")
 	accountId = os.Getenv("GOFILE_ACCOUNT_ID")
-	if apiKey == "" || accountId == "" {
-		log.Fatal("GOFILE_API_KEY and GOFILE_ACCOUNT_ID environment variables must be set")
-	}
+
+	apiKey = "saFX3OyrQCoAPSmY8DCjtabEmHMj2jVJ"
+	accountId = "c8d17506-8456-4c3b-84d1-ac9bfada0332"
+
+	// if apiKey == "" || accountId == "" {
+	// 	log.Fatal("GOFILE_API_KEY and GOFILE_ACCOUNT_ID environment variables must be set")
+	// }
 }
 
 func main() {
@@ -39,11 +44,19 @@ func sentUploadFileRequest(folder string, filePath string) error {
 		Timeout: 5 * time.Second,
 	}
 
-	body := bytes.Buffer{}
-	writer := multipart.NewWriter(&body)
-	fmt.Println(writer.Boundary())
-	writer.WriteField("folderId", folder)
-	// writer.CreateFormField()
+	body := &bytes.Buffer{}
+
+	writer := multipart.NewWriter(body)
+
+	err := writer.WriteField("folderId", folder)
+	if err != nil {
+		panic(err)
+	}
+
+	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
+	if err != nil {
+		panic(err)
+	}
 
 	fileToSent, err := os.Open(filePath)
 	if err != nil {
@@ -51,21 +64,17 @@ func sentUploadFileRequest(folder string, filePath string) error {
 	}
 	defer fileToSent.Close()
 
-	// file := http.File(fileToSent)
-	fileToSent.WriteTo()
-
-	jsonBody, err := json.Marshal(body)
+	_, err = io.Copy(part, fileToSent)
 	if err != nil {
 		panic(err)
 	}
+	writer.Close()
 
-	fmt.Println(string(jsonBody))
-
-	req, err := http.NewRequest(http.MethodPost, "https://upload.gofile.io/uploadfile", bytes.NewReader(jsonBody))
+	req, err := http.NewRequest(http.MethodPost, "https://upload.gofile.io/uploadfile", body)
 	if err != nil {
 		panic(err)
 	}
-	req.Header.Set("Content-Type", "multipart/form-data")
+	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	resp, err := client.Do(req)
@@ -74,10 +83,9 @@ func sentUploadFileRequest(folder string, filePath string) error {
 	}
 	defer resp.Body.Close()
 
-	var respBody string
-	if err = json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		panic(err)
-	}
+	respBody, _ := io.ReadAll(resp.Body)
+	fmt.Println(resp.Status)
+	fmt.Println(string(respBody))
 
 	return nil
 }
@@ -102,12 +110,6 @@ func sentCreateFolderRequest(accountId string, folderName string) error {
 		return err
 	}
 
-	// buf := bytes.Buffer{}
-	// err := json.NewEncoder(&buf).Encode(body)
-	// if err != nil {
-	// 	return err
-	// }
-
 	req, err := http.NewRequest(http.MethodPost, "https://api.gofile.io/contents/createFolder", bytes.NewReader(jsonBody))
 	if err != nil {
 		return err
@@ -121,13 +123,9 @@ func sentCreateFolderRequest(accountId string, folderName string) error {
 	}
 	defer resp.Body.Close()
 
-	// map[data:map[code:3PXYcB createTime:1.764681296e+09 id:a7026f8b-49e1-4517-9e86-5a2839774a79 modTime:1.764681296e+09 name:main owner:a03efd8c-82fb-477c-9a3a-f24a7b892b23 parentFolder:c8d17506-8456-4c3b-84d1-ac9bfada0332 type:folder] status:ok]
-	var respBody map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		return err
-	}
-
-	fmt.Println(respBody)
+	respBody, _ := io.ReadAll(resp.Body)
+	fmt.Println(resp.Status)
+	fmt.Println(string(respBody))
 
 	return nil
 }
