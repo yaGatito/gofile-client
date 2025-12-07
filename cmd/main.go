@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
@@ -22,10 +23,63 @@ func init() {
 }
 
 func main() {
-	err := sentCreateFolderRequest(accountId, "main")
+	// err := sentCreateFolderRequest(accountId, "main")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	err := sentUploadFileRequest(accountId, "./files/file.txt")
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
+}
+
+func sentUploadFileRequest(folder string, filePath string) error {
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	body := bytes.Buffer{}
+	writer := multipart.NewWriter(&body)
+	fmt.Println(writer.Boundary())
+	writer.WriteField("folderId", folder)
+	// writer.CreateFormField()
+
+	fileToSent, err := os.Open(filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer fileToSent.Close()
+
+	// file := http.File(fileToSent)
+	fileToSent.WriteTo()
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(string(jsonBody))
+
+	req, err := http.NewRequest(http.MethodPost, "https://upload.gofile.io/uploadfile", bytes.NewReader(jsonBody))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "multipart/form-data")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	var respBody string
+	if err = json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		panic(err)
+	}
+
+	return nil
 }
 
 type createFolderRequestBody struct {
