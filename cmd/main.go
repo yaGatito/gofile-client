@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	gofile "remstor/client"
 	"time"
 )
 
@@ -21,7 +22,7 @@ func init() {
 	apiKey = os.Getenv("GOFILE_API_KEY")
 	folderId = os.Getenv("GOFILE_ACCOUNT_ID")
 
-	apiKey = ""
+	apiKey = "saFX3OyrQCoAPSmY8DCjtabEmHMj2jVJ"
 	folderId = "c8d17506-8456-4c3b-84d1-ac9bfada0332"
 
 	// if apiKey == "" || accountId == "" {
@@ -30,17 +31,35 @@ func init() {
 }
 
 func main() {
-	// err := sentCreateFolderRequest(folderId, "main1")
+	client, err := gofile.NewClient(apiKey, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	req, err := client.CreateGetContentsInfoRequest()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bytes, _, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(bytes))
+
+	// req, err := client.CreateGetFileRequest("d8a2458c-dbc6-478c-a339-31be76e83e6e", "file.txt")
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
 
-	// err := sentUploadFileRequest(folderId, "./files/file1")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	// bytes, resp, err := client.Do(req)
+	// fmt.Println(string(bytes))
+	// fmt.Println(resp.Status)
 
-	err := getFileRequest("d8a2458c-dbc6-478c-a339-31be76e83e6e", "file.txt")
+	// curl.exe -X GET "https://api.gofile.io/contents/c8d17506-8456-4c3b-84d1-ac9bfada0332?wt=4fd6sg89d7s6" -H "Authorization: Bearer saFX3OyrQCoAPSmY8DCjtabEmHMj2jVJ"
+
+	// err := getFileRequest("d8a2458c-dbc6-478c-a339-31be76e83e6e", "file.txt")
 	// err := getFileRequest("bfb966d2-21b0-4ca9-b256-fd4943059393", "file1")
 	if err != nil {
 		log.Fatal(err)
