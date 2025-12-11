@@ -146,31 +146,44 @@ func (c *GofileClient) CreatePostFolderRequest(ctx context.Context, parentFolder
 }
 
 func (c *GofileClient) CreatePostFileRequest(ctx context.Context, folderId, filePath string) (*http.Request, error) {
-	body := &bytes.Buffer{}
+	pr, pw := io.Pipe()
+	writer := multipart.NewWriter(pw)
 
-	writer := multipart.NewWriter(body)
-	err := writer.WriteField(folderIdAttribute, folderId)
-	if err != nil {
-		return nil, fmt.Errorf("writing folder id: %w", err)
-	}
-	part, err := writer.CreateFormFile(fileAttribute, filepath.Base(filePath))
-	if err != nil {
-		return nil, fmt.Errorf("create form file: %w", err)
-	}
-	fileToSent, err := os.Open(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("opening file: %w", err)
-	}
-	defer fileToSent.Close()
-	_, err = io.Copy(part, fileToSent)
-	if err != nil {
-		return nil, fmt.Errorf("copying file: %w", err)
-	}
-	if err := writer.Close(); err != nil {
-		return nil, err
-	}
+	go func() {
+		err := writer.WriteField(folderIdAttribute, folderId)
+		if err != nil {
+			log.Default().Printf("error writing folder id: %v", err)
+			pw.CloseWithError(err)
+			return
+		}
+		part, err := writer.CreateFormFile(fileAttribute, filepath.Base(filePath))
+		if err != nil {
+			log.Default().Printf("error creating form file: %v", err)
+			pw.CloseWithError(err)
+			return
+		}
+		file, err := os.Open(filePath)
+		if err != nil {
+			log.Default().Printf("error opening file: %v", err)
+			pw.CloseWithError(err)
+			return
+		}
+		defer file.Close()
+		_, err = io.Copy(part, file)
+		if err != nil {
+			log.Default().Printf("error copying file: %v", err)
+			pw.CloseWithError(err)
+			return
+		}
+		if err := writer.Close(); err != nil {
+			log.Default().Printf("error closing writer: %v", err)
+			pw.CloseWithError(err)
+			return
+		}
+		pw.Close()
+	}()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, postFileEndpoint, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, postFileEndpoint, pr)
 	if err != nil {
 		return nil, fmt.Errorf("creating post file request: %w", err)
 	}
