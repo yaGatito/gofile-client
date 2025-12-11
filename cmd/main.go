@@ -1,18 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
-	"io"
 	"log"
-	"mime/multipart"
-	"net/http"
-	"net/url"
 	"os"
-	"path/filepath"
 	gofile "remstor/client"
-	"time"
 )
 
 var apiKey string
@@ -36,159 +28,45 @@ func main() {
 		log.Fatal(err)
 	}
 
-	req, err := client.CreateGetContentsInfoRequest()
+	// req, err := client.CreatePostFolderRequest("root", "HUESOSES")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// bytes, _, err := client.Do(req)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// var createFolderResponseData gofile.CreateFolderResponseData
+	// err = json.Unmarshal(bytes, &createFolderResponseData)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// log.Default().Println("Folder create JSON:", string(bytes))
+
+	// folder id 
+	req, err := client.CreatePostFileRequest("ee6d30df-92f5-4fe7-b174-165c9b838efb", "./files/video.mp4")
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	bytes, _, err := client.Do(req)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Println(string(bytes))
-
-	// req, err := client.CreateGetFileRequest("d8a2458c-dbc6-478c-a339-31be76e83e6e", "file.txt")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// bytes, resp, err := client.Do(req)
-	// fmt.Println(string(bytes))
-	// fmt.Println(resp.Status)
-
-	// curl.exe -X GET "https://api.gofile.io/contents/c8d17506-8456-4c3b-84d1-ac9bfada0332?wt=4fd6sg89d7s6" -H "Authorization: Bearer saFX3OyrQCoAPSmY8DCjtabEmHMj2jVJ"
-
-	// err := getFileRequest("d8a2458c-dbc6-478c-a339-31be76e83e6e", "file.txt")
-	// err := getFileRequest("bfb966d2-21b0-4ca9-b256-fd4943059393", "file1")
+	var uploadFileResponseData gofile.UploadFileResponseData
+	err = json.Unmarshal(bytes, &uploadFileResponseData)
 	if err != nil {
 		log.Fatal(err)
 	}
-}
+	log.Default().Println("File upload JSON:", string(bytes))
 
-func getFileRequest(folderId string, fileName string) error {
-	client := http.Client{
-		Timeout: 5 * time.Second,
-	}
-
-	url := fmt.Sprintf(
-		"https://store-eu-par-1.gofile.io/download/web/%s/%s",
-		url.PathEscape(folderId),
-		url.PathEscape(fileName),
-	)
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err = client.CreateGetFileRequest(uploadFileResponseData.Data.Servers[0], uploadFileResponseData.Data.Id, uploadFileResponseData.Data.Name)
 	if err != nil {
-		log.Fatal(err)
+		log.Default().Println("Error: ", err)
 	}
-
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-
-	resp, err := client.Do(req)
+	bytes, _, err = client.Do(req)
 	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	ct := resp.Header.Get("Content-Type")
-	fmt.Println("Content-Type:", ct)
-	fmt.Println(resp.Status)
-	fmt.Println(string(respBody))
-
-	return nil
-}
-
-func sentUploadFileRequest(folder string, filePath string) error {
-	client := http.Client{
-		Timeout: 5 * time.Second,
+		log.Default().Println("Error: ", err)
 	}
 
-	body := &bytes.Buffer{}
-
-	writer := multipart.NewWriter(body)
-
-	err := writer.WriteField("folderId", folder)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fileToSent, err := os.Open(filePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer fileToSent.Close()
-
-	_, err = io.Copy(part, fileToSent)
-	if err != nil {
-		log.Fatal(err)
-	}
-	writer.Close()
-
-	req, err := http.NewRequest(http.MethodPost, "https://upload.gofile.io/uploadfile", body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	fmt.Println(resp.Status)
-	fmt.Println(string(respBody))
-
-	return nil
-}
-
-type createFolderRequestBody struct {
-	ParentFolderId string `json:"parentFolderId"`
-	FolderName     string `json:"folderName,omitempty"`
-}
-
-func sentCreateFolderRequest(accountId string, folderName string) error {
-	client := http.Client{
-		Timeout: 5 * time.Second,
-	}
-
-	body := createFolderRequestBody{
-		ParentFolderId: accountId,
-		FolderName:     folderName,
-	}
-
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, "https://api.gofile.io/contents/createFolder", bytes.NewReader(jsonBody))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	fmt.Println(resp.Status)
-	fmt.Println(string(respBody))
-
-	return nil
+	log.Default().Println("File get:", len(bytes), "bytes")
 }
