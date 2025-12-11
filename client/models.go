@@ -1,10 +1,6 @@
 package gofile
 
-type createFolderRequestBody struct {
-	ParentFolderId string `json:"parentFolderId"`
-	FolderName     string `json:"folderName,omitempty"`
-}
-
+// Public Models
 type CreateFolderResponseData struct {
 	Status string `json:"status"`
 	Data   struct {
@@ -34,6 +30,12 @@ type UploadFileResponseData struct {
 	} `json:"data"`
 }
 
+// Private Models
+type createFolderRequestBody struct {
+	ParentFolderId string `json:"parentFolderId"`
+	FolderName     string `json:"folderName,omitempty"`
+}
+
 type getAccountInfoResponseData struct {
 	Status string `json:"status"`
 	Data   struct {
@@ -56,25 +58,3 @@ type getIdResponseData struct {
 	} `json:"data"`
 }
 
-// type getContentsInfoResponseData struct {
-// 	Status string `json:"status"`
-// 	Data   struct {
-// 		Type_         string         `json:"type"`
-// 		Name          string         `json:"name"`
-// 		Code          string         `json:"code"`
-// 		IsRoot        string         `json:"isRoot"`
-// 		TotalSize     int64          `json:"totalSize"`
-// 		ChildrenCount int            `json:"childrenCount"`
-// 		Children      []childrenInfo `json:"children"`
-// 	} `json:"data"`
-// }
-
-// type childrenInfo struct {
-// 	Id             string `json:"id"`
-// 	Type_          string `json:"type"`
-// 	Name           string `json:"name"`
-// 	Size           int64  `json:"size"`
-// 	Mimetype       string `json:"mimetype"`
-// 	ServerSelected string `json:"serverSelected"`
-// 	Link           string `json:"link"`
-// }

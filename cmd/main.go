@@ -1,10 +1,10 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
+	gofile "gofile/client"
 	"log"
 	"os"
-	gofile "remstor/client"
 )
 
 var apiKey string
@@ -43,27 +43,29 @@ func main() {
 	// }
 	// log.Default().Println("Folder create JSON:", string(bytes))
 
-	// folder id 
-	req, err := client.CreatePostFileRequest("ee6d30df-92f5-4fe7-b174-165c9b838efb", "./files/video.mp4")
-	if err != nil {
-		log.Fatal(err)
-	}
-	bytes, _, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var uploadFileResponseData gofile.UploadFileResponseData
-	err = json.Unmarshal(bytes, &uploadFileResponseData)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Default().Println("File upload JSON:", string(bytes))
+	// 											folder id related to file upload
+	// req, err := client.CreatePostFileRequest("ee6d30df-92f5-4fe7-b174-165c9b838efb", "./files/video.mp4")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// bytes, _, err := client.Do(req)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// var uploadFileResponseData gofile.UploadFileResponseData
+	// err = json.Unmarshal(bytes, &uploadFileResponseData)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// log.Default().Println("File upload JSON:", string(bytes))
 
-	req, err = client.CreateGetFileRequest(uploadFileResponseData.Data.Servers[0], uploadFileResponseData.Data.Id, uploadFileResponseData.Data.Name)
+	req, err := client.CreateGetFileRequest(context.Background(), "cold1", "8402ba65-6dd4-4ef3-8178-907d4c58b9f3", "video.mp4")
+
+	// req, err = client.CreateGetFileRequest(uploadFileResponseData.Data.Servers[0], uploadFileResponseData.Data.Id, uploadFileResponseData.Data.Name)
 	if err != nil {
 		log.Default().Println("Error: ", err)
 	}
-	bytes, _, err = client.Do(req)
+	bytes, _, err := client.Do(req)
 	if err != nil {
 		log.Default().Println("Error: ", err)
 	}

@@ -2,6 +2,7 @@ package gofile
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,11 +12,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // TODO: logger support
 // TODO: context.Context() support
-// TODO: check header data format and if it is HTML - ignore body and close immediately
 
 const (
 	postFolderEndpoint   = "https://api.gofile.io/contents/createFolder"
@@ -23,8 +24,12 @@ const (
 	accountsEndpointPart = "https://api.gofile.io/accounts/"
 	contentsEndpointPart = "https://api.gofile.io/contents/"
 
-	// TODO: remove when API service is fixed
-	contentsQueryWT = "?wt=4fd6sg89d7s6"
+	contentTypeHeader = "Content-Type"
+
+	folderIdAttribute = "folderId"
+	fileAttribute     = "file"
+
+	rootFolderIdPlaceholder = "root"
 )
 
 type GofileClient struct {
@@ -34,6 +39,7 @@ type GofileClient struct {
 	rootFolderId string
 }
 
+// NewClient creates client with provided API key. It will create a new client if the provided one is.
 func NewClient(apiKey string, client *http.Client) (*GofileClient, error) {
 	if client == nil {
 		client = &http.Client{}
@@ -44,8 +50,12 @@ func NewClient(apiKey string, client *http.Client) (*GofileClient, error) {
 		client: client,
 	}
 
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
 	// Get account ID
-	req, err := gfclient.CreateGetIdRequest()
+	req, err := gfclient.CreateGetIdRequest(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("creating 'getid' request: %w", err)
 	}
@@ -61,7 +71,7 @@ func NewClient(apiKey string, client *http.Client) (*GofileClient, error) {
 	gfclient.accountId = getIdResp.Data.Id
 
 	// Get root folder ID
-	req, err = gfclient.CreateGetAccountInfoRequest()
+	req, err = gfclient.CreateGetAccountInfoRequest(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("creating 'getAccountInfo' request: %w", err)
 	}
@@ -75,22 +85,6 @@ func NewClient(apiKey string, client *http.Client) (*GofileClient, error) {
 		return nil, fmt.Errorf("unmarshalling 'getAccountInfo' response: %w", err)
 	}
 	gfclient.rootFolderId = getAccountInfoResp.Data.RootFolder
-
-	// // Get contents info to validate account
-	// req, err = gfclient.CreateGetContentsInfoRequest()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("creating 'getContentsInfo' request: %w", err)
-	// }
-	// body, _, err = gfclient.Do(req)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("sending 'getContentsInfo' request: %w", err)
-	// }
-	// var getContentsInfoResp getContentsInfoResponseData
-	// err = json.Unmarshal(body, &getContentsInfoResp)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("unmarshalling 'getContentsInfo' response: %w", err)
-	// }
-	// fmt.Println(getContentsInfoResp)
 
 	// Validate received data
 	if gfclient.rootFolderId == "" || gfclient.accountId == "" {
@@ -107,16 +101,17 @@ func (c *GofileClient) Do(req *http.Request) ([]byte, *http.Response, error) {
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, fmt.Errorf("sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, fmt.Errorf("reading response body: %w", err)
 	}
 
-	if resp.Header.Get("Content-Type") == "text/html" {
+	// Check error responses
+	if resp.Header.Get(contentTypeHeader) == "text/html" || bytes.HasPrefix(respBody, []byte("<!DOCTYPE html>")) {
 		log.Default().Printf("Received HTML response body")
 		return nil, resp, fmt.Errorf("received HTML response, possible error page")
 	}
@@ -129,8 +124,8 @@ func (c *GofileClient) Do(req *http.Request) ([]byte, *http.Response, error) {
 	return respBody, resp, nil
 }
 
-func (c *GofileClient) CreatePostFolderRequest(parentFolderId, folderName string) (*http.Request, error) {
-	if parentFolderId == "root" {
+func (c *GofileClient) CreatePostFolderRequest(ctx context.Context, parentFolderId, folderName string) (*http.Request, error) {
+	if parentFolderId == rootFolderIdPlaceholder {
 		parentFolderId = c.rootFolderId
 	}
 	jsonBody, err := json.Marshal(createFolderRequestBody{
@@ -138,27 +133,27 @@ func (c *GofileClient) CreatePostFolderRequest(parentFolderId, folderName string
 		FolderName:     folderName,
 	})
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("creating marshalling response: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, postFolderEndpoint, bytes.NewReader(jsonBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, postFolderEndpoint, bytes.NewReader(jsonBody))
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("creating post folder request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(contentTypeHeader, "application/json")
 
 	return req, nil
 }
 
-func (c *GofileClient) CreatePostFileRequest(folderId, filePath string) (*http.Request, error) {
+func (c *GofileClient) CreatePostFileRequest(ctx context.Context, folderId, filePath string) (*http.Request, error) {
 	body := &bytes.Buffer{}
 
 	writer := multipart.NewWriter(body)
-	err := writer.WriteField("folderId", folderId)
+	err := writer.WriteField(folderIdAttribute, folderId)
 	if err != nil {
 		return nil, fmt.Errorf("writing folder id: %w", err)
 	}
-	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
+	part, err := writer.CreateFormFile(fileAttribute, filepath.Base(filePath))
 	if err != nil {
 		return nil, fmt.Errorf("create form file: %w", err)
 	}
@@ -175,11 +170,11 @@ func (c *GofileClient) CreatePostFileRequest(folderId, filePath string) (*http.R
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, postFileEndpoint, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, postFileEndpoint, body)
 	if err != nil {
 		return nil, fmt.Errorf("creating post file request: %w", err)
 	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set(contentTypeHeader, writer.FormDataContentType())
 
 	log.Default().Printf("Created file upload request for file %s to folder id %s", filePath, folderId)
 
@@ -188,21 +183,19 @@ func (c *GofileClient) CreatePostFileRequest(folderId, filePath string) (*http.R
 
 const getFileEndpoint = "https://%s.gofile.io/download/web/%s/%s"
 
-func (c *GofileClient) CreateGetFileRequest(server, fileId, fileName string) (*http.Request, error) {
+func (c *GofileClient) CreateGetFileRequest(ctx context.Context, server, fileId, fileName string) (*http.Request, error) {
 	url := fmt.Sprintf(getFileEndpoint, server, url.PathEscape(fileId), url.PathEscape(fileName))
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("creating 'getFile' request: %w", err)
 	}
-
-	req.Header.Set("Cookie", "accountToken="+c.apiKey)
 
 	return req, nil
 }
 
-func (c *GofileClient) CreateGetIdRequest() (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodGet, accountsEndpointPart+"getid", nil)
+func (c *GofileClient) CreateGetIdRequest(ctx context.Context) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, accountsEndpointPart+"getid", nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating 'getid' request: %w", err)
 	}
@@ -210,20 +203,11 @@ func (c *GofileClient) CreateGetIdRequest() (*http.Request, error) {
 	return req, nil
 }
 
-func (c *GofileClient) CreateGetAccountInfoRequest() (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodGet, accountsEndpointPart+c.accountId, nil)
+func (c *GofileClient) CreateGetAccountInfoRequest(ctx context.Context) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, accountsEndpointPart+c.accountId, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating 'getAccountInfo' request: %w", err)
 	}
 
 	return req, nil
 }
-
-// func (c *GofileClient) CreateGetContentsInfoRequest() (*http.Request, error) {
-// 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s%s%s", contentsEndpointPart, c.rootFolderId, contentsQueryWT), nil)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("creating 'getContentsInfo' request: %w", err)
-// 	}
-
-// 	return req, nil
-// }
