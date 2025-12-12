@@ -213,7 +213,7 @@ func (c *GofileClient) createPostFileRequest(ctx context.Context, folderId, file
 		}
 		part, err := writer.CreateFormFile(fileAttribute, fileName)
 		if err != nil {
-			c.logger.Printf("error creating form file ofr multipart writer: %v\n", err)
+			c.logger.Printf("error creating form file for multipart writer: %v\n", err)
 			pw.CloseWithError(err)
 			return
 		}
