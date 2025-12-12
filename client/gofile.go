@@ -78,10 +78,10 @@ func (c *GofileClient) CreateFolder(ctx context.Context, parentFolderId, newFold
 	if err != nil {
 		return CreateFolderResponseBody{}, err
 	}
+	defer resp.Body.Close()
 
 	var ceateFolderResponseBody CreateFolderResponseBody
 	err = json.NewDecoder(resp.Body).Decode(&ceateFolderResponseBody)
-	defer resp.Body.Close()
 	if err != nil {
 		return CreateFolderResponseBody{}, err
 	}
@@ -107,10 +107,10 @@ func (c *GofileClient) UploadFile(ctx context.Context, folderId, fileName string
 	if err != nil {
 		return UploadFileResponseBody{}, err
 	}
+	defer resp.Body.Close()
 
 	var uploadFileResponseBody UploadFileResponseBody
 	err = json.NewDecoder(resp.Body).Decode(&uploadFileResponseBody)
-	defer resp.Body.Close()
 	if err != nil {
 		return UploadFileResponseBody{}, err
 	}
@@ -280,10 +280,10 @@ func (c *GofileClient) accountID(ctx context.Context) (string, error) {
 			c.accountIdError = fmt.Errorf("sending 'getid' request: %w", err)
 			return
 		}
+		defer resp.Body.Close()
 
 		var getIdResp getIdResponseData
 		err = json.NewDecoder(resp.Body).Decode(&getIdResp)
-		defer resp.Body.Close()
 		if err != nil {
 			c.accountIdError = fmt.Errorf("unmarshalling 'getid' response: %w", err)
 			return
@@ -317,10 +317,10 @@ func (c *GofileClient) rootFolderId(ctx context.Context) (string, error) {
 			c.rootFolderIdError = fmt.Errorf("failed to send 'getAccountInfo' request: %w", err)
 			return
 		}
+		defer resp.Body.Close()
 
 		var getAccountInfoResp getAccountInfoResponseData
 		err = json.NewDecoder(resp.Body).Decode(&getAccountInfoResp)
-		defer resp.Body.Close()
 		if err != nil {
 			c.rootFolderIdError = fmt.Errorf("failed to unmarshal 'getAccountInfo' response: %w", err)
 			return
