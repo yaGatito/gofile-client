@@ -1,10 +1,12 @@
 package gofile
 
+import "fmt"
+
 // Public Models
-type CreateFolderResponseData struct {
+type CreateFolderResponseBody struct {
 	Status string `json:"status"`
 	Data   struct {
-		Id             string `json:"folderId"`
+		Id             string `json:"id"`
 		Owner          string `json:"owner"`
 		Name           string `json:"name"`
 		ParentFolderId string `json:"parentFolder"`
@@ -13,7 +15,12 @@ type CreateFolderResponseData struct {
 	} `json:"data"`
 }
 
-type UploadFileResponseData struct {
+func (c CreateFolderResponseBody) String() string {
+	return fmt.Sprintf("Status: %s; Data.Id: %s; Data.Owner: %s; Data.Name: %s; Data.ParentFolderId: %s; Data.CreateTime: %d; Data.Code: %s",
+		c.Status, c.Data.Id, c.Data.Owner, c.Data.Name, c.Data.ParentFolderId, c.Data.CreateTime, c.Data.Code)
+}
+
+type UploadFileResponseBody struct {
 	Status string `json:"status"`
 	Data   struct {
 		CreateTime       int64    `json:"createTime"`
@@ -28,6 +35,11 @@ type UploadFileResponseData struct {
 		Size             int64    `json:"size"`
 		Type             string   `json:"type"`
 	} `json:"data"`
+}
+
+func (u UploadFileResponseBody) String() string {
+	return fmt.Sprintf("Status: %s; Data.Id: %s; Data.Name: %s; Data.Md5: %s; Data.Size: %d; Data.Type: %s; Data.Mimetype: %s; Data.CreateTime: %d; Data.ParentFolderId: %s; Data.DownloadPage: %s",
+		u.Status, u.Data.Id, u.Data.Name, u.Data.Md5, u.Data.Size, u.Data.Type, u.Data.Mimetype, u.Data.CreateTime, u.Data.ParentFolderId, u.Data.DownloadPage)
 }
 
 // Private Models
@@ -57,4 +69,3 @@ type getIdResponseData struct {
 		Email string `json:"email"`
 	} `json:"data"`
 }
-

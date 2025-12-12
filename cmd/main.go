@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	gofile "gofile/client"
+	"io"
 	"log"
 	"os"
+	"time"
 )
 
 var apiKey string
@@ -28,47 +30,30 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// req, err := client.CreatePostFolderRequest("root", "HUESOSES")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// bytes, _, err := client.Do(req)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// var createFolderResponseData gofile.CreateFolderResponseData
-	// err = json.Unmarshal(bytes, &createFolderResponseData)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// log.Default().Println("Folder create JSON:", string(bytes))
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
-	// 											folder id related to file upload
-	// req, err := client.CreatePostFileRequest("ee6d30df-92f5-4fe7-b174-165c9b838efb", "./files/video.mp4")
+	// createFolderResponse, err := client.CreateFolder(ctx, "root", "HUESOSESICK")
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
-	// bytes, _, err := client.Do(req)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// var uploadFileResponseData gofile.UploadFileResponseData
-	// err = json.Unmarshal(bytes, &uploadFileResponseData)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// log.Default().Println("File upload JSON:", string(bytes))
+	// log.Default().Println("Response received:", createFolderResponse)
 
-	req, err := client.CreateGetFileRequest(context.Background(), "cold1", "8402ba65-6dd4-4ef3-8178-907d4c58b9f3", "video.mp4")
+	// ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
+	// defer cancel()
+	// file, err := os.Open("./files/video.mp4")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// postFileResponse, err := client.UploadFile(ctx, "ee6d30df-92f5-4fe7-b174-165c9b838efb", "./files/video.mp4", file)
+	// log.Default().Println("Response received:", postFileResponse)
 
-	// req, err = client.CreateGetFileRequest(uploadFileResponseData.Data.Servers[0], uploadFileResponseData.Data.Id, uploadFileResponseData.Data.Name)
+	reader, err := client.DownloadFile(ctx, "store5", "8402ba65-6dd4-4ef3-8178-907d4c58b9f3", "video.mp4")
 	if err != nil {
-		log.Default().Println("Error: ", err)
+		log.Fatal(err)
 	}
-	bytes, _, err := client.Do(req)
-	if err != nil {
-		log.Default().Println("Error: ", err)
-	}
+	defer reader.Close()
+	bytes, err := io.ReadAll(reader)
 
 	log.Default().Println("File get:", len(bytes), "bytes")
 }
