@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	"fmt"
 	gofile "gofile/client"
 	"io"
 	"log"
@@ -25,13 +25,20 @@ func init() {
 }
 
 func main() {
-	client, err := gofile.NewClient(apiKey, nil)
-	if err != nil {
-		log.Fatal(err)
+	var logWriter io.Writer
+	var err error
+	var disableLogging bool = true
+	if disableLogging {
+		logWriter, err = os.OpenFile(fmt.Sprintf("./logs/log-%s.log", time.Now().Format(time.DateOnly)), os.O_CREATE|os.O_RDWR|os.O_WRONLY, 0666)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		logWriter = io.Discard
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+	_ = gofile.NewClient(apiKey, nil, logWriter)
+	// ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	// defer cancel()
 
 	// createFolderResponse, err := client.CreateFolder(ctx, "root", "HUESOSESICK")
 	// if err != nil {
@@ -48,12 +55,12 @@ func main() {
 	// postFileResponse, err := client.UploadFile(ctx, "ee6d30df-92f5-4fe7-b174-165c9b838efb", "./files/video.mp4", file)
 	// log.Default().Println("Response received:", postFileResponse)
 
-	reader, err := client.DownloadFile(ctx, "store5", "8402ba65-6dd4-4ef3-8178-907d4c58b9f3", "video.mp4")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer reader.Close()
-	bytes, err := io.ReadAll(reader)
+	// reader, err := client.DownloadFile(ctx, "store5", "8402ba65-6dd4-4ef3-8178-907d4c58b9f3", "video.mp4")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer reader.Close()
+	// bytes, err := io.ReadAll(reader)
 
-	log.Default().Println("File get:", len(bytes), "bytes")
+	// log.Default().Println("File get:", len(bytes), "bytes")
 }

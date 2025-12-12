@@ -32,6 +32,7 @@ const (
 type GofileClient struct {
 	apiKey string
 	client *http.Client
+	logger *log.Logger
 
 	accountIdCached string
 	accountIdOnce   sync.Once
@@ -43,15 +44,18 @@ type GofileClient struct {
 }
 
 // NewClient creates client with provided API key. It will create a new client if the provided one is.
-func NewClient(apiKey string, client *http.Client) (*GofileClient, error) {
+func NewClient(apiKey string, client *http.Client, logWriter io.Writer) *GofileClient {
 	if client == nil {
 		client = &http.Client{}
 	}
 
-	return &GofileClient{
+	c := &GofileClient{
 		apiKey: apiKey,
 		client: client,
-	}, nil
+		logger: log.New(logWriter, "[GOFILE-CLIENT] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.LUTC),
+	}
+
+	return c
 }
 
 func (c *GofileClient) CreateFolder(ctx context.Context, parentFolderId, newFolderName string) (CreateFolderResponseBody, error) {
@@ -143,7 +147,7 @@ func (c *GofileClient) DownloadFile(ctx context.Context, server, fileId, fileNam
 func (c *GofileClient) do(req *http.Request) (*http.Response, error) {
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	log.Default().Printf("Sending request to %s", req.URL.String())
+	c.logger.Printf("Sending request to %s\n", req.URL.String())
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -152,7 +156,7 @@ func (c *GofileClient) do(req *http.Request) (*http.Response, error) {
 
 	// Check error responses
 	if resp.Header.Get(contentTypeHeader) == "text/html" {
-		log.Default().Printf("Received HTML response body")
+		c.logger.Printf("Received HTML response body\n")
 		return nil, fmt.Errorf("received HTML response, possible error page")
 	}
 
@@ -203,24 +207,24 @@ func (c *GofileClient) createPostFileRequest(ctx context.Context, folderId, file
 
 		err := writer.WriteField(folderIdAttribute, folderId)
 		if err != nil {
-			log.Default().Printf("failed to write 'folder ID' into multipart body: %v", err)
+			c.logger.Printf("failed to write 'folder ID' into multipart body: %v\n", err)
 			pw.CloseWithError(err)
 			return
 		}
 		part, err := writer.CreateFormFile(fileAttribute, fileName)
 		if err != nil {
-			log.Default().Printf("error creating form file ofr multipart writer: %v", err)
+			c.logger.Printf("error creating form file ofr multipart writer: %v\n", err)
 			pw.CloseWithError(err)
 			return
 		}
 		_, err = io.Copy(part, fileReader)
 		if err != nil {
-			log.Default().Printf("failed to copy file %v into multipart body", err)
+			c.logger.Printf("failed to copy file into multipart body error: %v\n", err)
 			pw.CloseWithError(err)
 			return
 		}
 		if err := writer.Close(); err != nil {
-			log.Default().Printf("error closing multipart writer: %v", err)
+			c.logger.Printf("closing multipart writer error: %v\n", err)
 			pw.CloseWithError(err)
 			return
 		}
@@ -232,7 +236,7 @@ func (c *GofileClient) createPostFileRequest(ctx context.Context, folderId, file
 	}
 	req.Header.Set(contentTypeHeader, writer.FormDataContentType())
 
-	log.Default().Printf("Created file upload request for file %s to folder id %s", fileName, folderId)
+	c.logger.Printf("Created file upload request for file %s to folder id %s\n", fileName, folderId)
 
 	return req, nil
 }
