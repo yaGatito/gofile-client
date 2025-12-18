@@ -10,9 +10,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"sync"
 )
 
+// TODO: multi-thread client support
 // TODO: logger support
 
 const (
@@ -47,6 +50,12 @@ type GofileClient struct {
 func NewClient(apiKey string, client *http.Client, logWriter io.Writer) *GofileClient {
 	if client == nil {
 		client = &http.Client{}
+	}
+	if logWriter == nil {
+		logWriter = os.Stdout
+	}
+	if apiKey == "" {
+		return nil
 	}
 
 	c := &GofileClient{
@@ -92,7 +101,7 @@ func (c *GofileClient) CreateFolder(ctx context.Context, parentFolderId, newFold
 	return ceateFolderResponseBody, nil
 }
 
-func (c *GofileClient) UploadFile(ctx context.Context, folderId, fileName string, fileReader io.Reader) (UploadFileResponseBody, error) {
+func (c *GofileClient) UploadFile(ctx context.Context, folderId, fileName string, fileReader io.ReadCloser) (UploadFileResponseBody, error) {
 	if folderId == "" {
 		return UploadFileResponseBody{}, fmt.Errorf("folderId is not specified")
 	}
@@ -155,7 +164,7 @@ func (c *GofileClient) do(req *http.Request) (*http.Response, error) {
 	}
 
 	// Check error responses
-	if resp.Header.Get(contentTypeHeader) == "text/html" {
+	if strings.HasPrefix(resp.Header.Get(contentTypeHeader), "text/html") {
 		c.logger.Printf("Received HTML response body\n")
 		return nil, fmt.Errorf("received HTML response, possible error page")
 	}
@@ -193,44 +202,39 @@ func (c *GofileClient) createPostFolderRequest(ctx context.Context, parentFolder
 	return req, nil
 }
 
-func (c *GofileClient) createPostFileRequest(ctx context.Context, folderId, fileName string, fileReader io.Reader) (*http.Request, error) {
-	pr, pw := io.Pipe()
-	writer := multipart.NewWriter(pw)
+func (c *GofileClient) createPostFileRequest(ctx context.Context, folderId, fileName string, fileReader io.ReadCloser) (*http.Request, error) {
+	bodyReader, bodyWriter := io.Pipe()
+	writer := multipart.NewWriter(bodyWriter)
 
 	go func() {
-		defer pw.Close()
-		defer writer.Close()
-		go func() {
-			<-ctx.Done()
-			pw.CloseWithError(ctx.Err())
-		}()
-
 		err := writer.WriteField(folderIdAttribute, folderId)
 		if err != nil {
 			c.logger.Printf("failed to write 'folder ID' into multipart body: %v\n", err)
-			pw.CloseWithError(err)
+			bodyWriter.CloseWithError(err)
 			return
 		}
 		part, err := writer.CreateFormFile(fileAttribute, fileName)
 		if err != nil {
 			c.logger.Printf("error creating form file for multipart writer: %v\n", err)
-			pw.CloseWithError(err)
+			bodyWriter.CloseWithError(err)
 			return
 		}
 		_, err = io.Copy(part, fileReader)
 		if err != nil {
 			c.logger.Printf("failed to copy file into multipart body error: %v\n", err)
-			pw.CloseWithError(err)
+			bodyWriter.CloseWithError(err)
 			return
 		}
-		if err := writer.Close(); err != nil {
-			c.logger.Printf("closing multipart writer error: %v\n", err)
-			pw.CloseWithError(err)
+		err = fileReader.Close()
+		err = bodyWriter.Close()
+		if err = writer.Close(); err != nil {
+			c.logger.Printf("closing resources error: %v\n", err)
+			bodyWriter.CloseWithError(err)
 			return
 		}
 	}()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, postFileEndpoint, pr)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, postFileEndpoint, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("creating post file request: %w", err)
 	}
@@ -272,7 +276,7 @@ func (c *GofileClient) createGetAccountInfoRequest(ctx context.Context, accountI
 	return req, nil
 }
 
-func (c *GofileClient) accountID(ctx context.Context) (string, error) {
+func (c *GofileClient) accountId(ctx context.Context) (string, error) {
 	c.accountIdOnce.Do(func() {
 		req, err := c.createGetIdRequest(ctx)
 		if err != nil {
@@ -305,7 +309,7 @@ func (c *GofileClient) accountID(ctx context.Context) (string, error) {
 
 func (c *GofileClient) rootFolderId(ctx context.Context) (string, error) {
 	c.rootFolderIdOnce.Do(func() {
-		accountId, err := c.accountID(ctx)
+		accountId, err := c.accountId(ctx)
 		if err != nil {
 			c.rootFolderIdError = fmt.Errorf("failed to get 'accountID': %w", err)
 			return
