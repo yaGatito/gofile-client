@@ -15,7 +15,6 @@ import (
 	"sync"
 )
 
-// TODO: multi-thread client support
 
 const (
 	postFolderEndpoint   = "https://api.gofile.io/contents/createFolder"
@@ -152,6 +151,25 @@ func (c *GofileClient) DownloadFile(ctx context.Context, server, fileId, fileNam
 	return response.Body, nil
 }
 
+func (c *GofileClient) GetFileInfo(ctx context.Context, fileId string) (GetFileInfoResponseBody, error) {
+	req, err := c.createGetFileInfoRequest(ctx, fileId)
+	if err != nil {
+		return GetFileInfoResponseBody{}, err
+	}
+	resp, err := c.do(req)
+	if err != nil {
+		return GetFileInfoResponseBody{}, err
+	}
+	defer resp.Body.Close()
+
+	var getFileInfoResponseBody GetFileInfoResponseBody
+	err = json.NewDecoder(resp.Body).Decode(&getFileInfoResponseBody)
+	if err != nil {
+		return GetFileInfoResponseBody{}, err
+	}
+	return getFileInfoResponseBody, nil
+}
+
 func (c *GofileClient) do(req *http.Request) (*http.Response, error) {
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 
@@ -169,7 +187,11 @@ func (c *GofileClient) do(req *http.Request) (*http.Response, error) {
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("received bad status: %s", resp.Status)
+		bytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("received bad status: %s, body: %s", resp.Status, string(bytes))
 	}
 
 	return resp, nil
@@ -253,7 +275,16 @@ func (c *GofileClient) createGetFileRequest(ctx context.Context, server, fileId,
 	if err != nil {
 		return nil, fmt.Errorf("creating 'getFile' request: %w", err)
 	}
+	return req, nil
+}
 
+func (c *GofileClient) createGetFileInfoRequest(ctx context.Context, fileId string) (*http.Request, error) {
+	url := fmt.Sprintf("%s%s", contentsEndpointPart, url.PathEscape(fileId))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req.Header.Set("X-Website-Token", "4fd6sg89d7s6")
+	if err != nil {
+		return nil, fmt.Errorf("creating 'getFile' request: %w", err)
+	}
 	return req, nil
 }
 

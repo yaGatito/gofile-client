@@ -42,6 +42,29 @@ func (u UploadFileResponseBody) String() string {
 		u.Status, u.Data.Id, u.Data.Name, u.Data.Md5, u.Data.Size, u.Data.Type, u.Data.Mimetype, u.Data.CreateTime, u.Data.ParentFolderId, u.Data.DownloadPage)
 }
 
+type GetFileInfoResponseBody struct {
+	Status string `json:"status"`
+	Data   struct {
+		Id             string   `json:"id"`
+		ParentFolderId string   `json:"parentFolder"`
+		Type           string   `json:"type"`
+		Name           string   `json:"name"`
+		CreateTime     int64    `json:"createTime"`
+		Size           int64    `json:"size"`
+		Mimetype       string   `json:"mimetype"`
+		Servers        []string `json:"servers"`
+		ServerSelected string   `json:"serverSelected"`
+		DownloadPage   string   `json:"link"`
+		ThumbNailLink  string   `json:"thumbnail"`
+		Md5            string   `json:"md5"`
+	} `json:"data"`
+}
+
+func (u GetFileInfoResponseBody) String() string {
+	return fmt.Sprintf("Status: %s; Data.Id: %s; Data.Name: %s; Data.Md5: %s; Data.Size: %d; Data.Type: %s; Data.Mimetype: %s; Data.CreateTime: %d; Data.ParentFolderId: %s; Data.DownloadPage: %s",
+		u.Status, u.Data.Id, u.Data.Name, u.Data.Md5, u.Data.Size, u.Data.Type, u.Data.Mimetype, u.Data.CreateTime, u.Data.ParentFolderId, u.Data.DownloadPage)
+}
+
 // Private Models
 type createFolderRequestBody struct {
 	ParentFolderId string `json:"parentFolderId"`
