@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	gofile "gofile/client"
+	gfclient "gofile/client"
 	"io"
+	"net/http"
 
 	"log"
 	"os"
@@ -23,41 +24,50 @@ func init() {
 }
 
 func main() {
-	client := gofile.NewClient(apiKey, nil, nil)
+	// A simple use case example.
+	logger := log.New(os.Stdout, "[GOFILE-CLIENT] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.LUTC)
+	client := gfclient.NewClient(apiKey, &http.Client{Timeout: 15 * time.Second}, logger)
+	ctx := context.Background()
+
+	// Creating a "NewFolder" folder.
+	createFolderResponse, err := client.CreateFolder(ctx, "root", "NewFolder")
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger.Println("Response received:", createFolderResponse)
+
+	// Setting context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	createFolderResponse, err := client.CreateFolder(ctx, "root", "HUESOSESICK")
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Default().Println("Response received:", createFolderResponse)
-
-	ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	file, err := os.Open("./files/video.mp4")
-	if err != nil {
-		log.Fatal(err)
-	}
-	postFileResponse, err := client.UploadFile(ctx, "ee6d30df-92f5-4fe7-b174-165c9b838efb", "./files/video.mp4", file)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Default().Println("Response received:", postFileResponse)
-
-	resp, err := client.GetFileInfo(ctx, "8402ba65-6dd4-4ef3-8178-907d4c58b9f3")
+	// Opening file
+	file, err := os.Open("./files/file.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	reader, err := client.DownloadFile(ctx, resp.Data.ServerSelected, resp.Data.Id, resp.Data.Name)
-	// reader, err := client.DownloadFile(ctx, "store5", "8402ba65-6dd4-4ef3-8178-907d4c58b9f3", "video.mp4")
+	// Uploading file
+	postFileResponse, err := client.UploadFile(ctx, createFolderResponse.Data.Id, "./files/file.txt", file)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger.Println("UploadFileResponseBody received:", postFileResponse)
+
+	// Getting file details in order to download it later
+	getFileInfoResponse, err := client.GetFileInfo(ctx, postFileResponse.Data.Id)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger.Println("GetFileInfoResponseBody received:", getFileInfoResponse)
+
+	// Getting file's io.ReadCloser from response
+	reader, err := client.DownloadFile(ctx, getFileInfoResponse.Data.ServerSelected, getFileInfoResponse.Data.Id, getFileInfoResponse.Data.Name)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer reader.Close()
 	bytes, err := io.ReadAll(reader)
 
-	log.Default().Println("File get:", len(bytes), "bytes")
+	logger.Println("File get:", len(bytes), "bytes")
+	logger.Println("File string content:", string(bytes))
 }
