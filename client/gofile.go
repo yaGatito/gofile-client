@@ -15,7 +15,6 @@ import (
 	"sync"
 )
 
-
 const (
 	postFolderEndpoint   = "https://api.gofile.io/contents/createFolder"
 	postFileEndpoint     = "https://upload.gofile.io/uploadfile"
@@ -45,21 +44,21 @@ type GofileClient struct {
 }
 
 // NewClient creates client with provided API key. It will create a new client if the provided one is.
-func NewClient(apiKey string, client *http.Client, logWriter io.Writer) *GofileClient {
+func NewClient(apiKey string, client *http.Client, logger *log.Logger) *GofileClient {
+	if apiKey == "" {
+		return nil
+	}
 	if client == nil {
 		client = &http.Client{}
 	}
-	if logWriter == nil {
-		logWriter = os.Stdout
-	}
-	if apiKey == "" {
-		return nil
+	if logger == nil {
+		logger = log.New(os.Stdout, "[GOFILE-CLIENT] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.LUTC)
 	}
 
 	c := &GofileClient{
 		apiKey: apiKey,
 		client: client,
-		logger: log.New(logWriter, "[GOFILE-CLIENT] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.LUTC),
+		logger: logger,
 	}
 
 	return c
