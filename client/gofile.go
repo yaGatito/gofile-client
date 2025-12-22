@@ -16,7 +16,6 @@ import (
 )
 
 // TODO: multi-thread client support
-// TODO: logger support
 
 const (
 	postFolderEndpoint   = "https://api.gofile.io/contents/createFolder"
@@ -207,6 +206,7 @@ func (c *GofileClient) createPostFileRequest(ctx context.Context, folderId, file
 	writer := multipart.NewWriter(bodyWriter)
 
 	go func() {
+		defer bodyWriter.Close()
 		err := writer.WriteField(folderIdAttribute, folderId)
 		if err != nil {
 			c.logger.Printf("failed to write 'folder ID' into multipart body: %v\n", err)
@@ -226,7 +226,6 @@ func (c *GofileClient) createPostFileRequest(ctx context.Context, folderId, file
 			return
 		}
 		err = fileReader.Close()
-		err = bodyWriter.Close()
 		if err = writer.Close(); err != nil {
 			c.logger.Printf("closing resources error: %v\n", err)
 			bodyWriter.CloseWithError(err)
