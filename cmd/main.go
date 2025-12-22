@@ -26,7 +26,10 @@ func init() {
 func main() {
 	// A simple use case example.
 	logger := log.New(os.Stdout, "[GOFILE-CLIENT] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.LUTC)
-	client := gfclient.NewClient(apiKey, &http.Client{Timeout: 15 * time.Second}, logger)
+	client, err := gfclient.New(apiKey, &http.Client{Timeout: 15 * time.Second}, logger)
+	if err != nil {
+		logger.Fatal("failed to create client:", err)
+	}
 	ctx := context.Background()
 
 	// Creating a "NewFolder" folder.
