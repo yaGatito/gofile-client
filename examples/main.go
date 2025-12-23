@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"io"
 	"log"
 	"os"
 
@@ -11,6 +10,7 @@ import (
 
 func main() {
 	uploadUsecase()
+	uploadAndGetUsecase()
 }
 
 func uploadUsecase() {
