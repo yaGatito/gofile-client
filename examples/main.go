@@ -2,14 +2,37 @@ package main
 
 import (
 	"context"
-	gfclient "gofile/client"
 	"io"
 	"net/http"
+
+	gfclient "github.com/yaGatito/gofile-client"
 
 	"log"
 	"os"
 	"time"
 )
+
+// func main() {
+// 	ctx := context.Background()
+
+// 	client := gfclient.New("your-api-key", nil, nil)
+// 	if client == nil {
+// 		log.Fatal("Failed to create GoFile client, empty API key?")
+// 	}
+
+// 	file, err := os.Open("example.txt")
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	defer file.Close()
+
+// 	resp, err := client.UploadFile(ctx, "root", "example.txt", file)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+
+// 	log.Printf("File uploaded: %+v", resp)
+// }
 
 var apiKey string
 var folderId string

@@ -11,6 +11,7 @@ import (
 const (
 	rootFolderIdPlaceholderConst = "root"
 	contentTypeHeader            = "Content-Type"
+	applicationJsonContentType   = "application/json"
 )
 
 // CreateFolder creates a new folder under the specified parent folder.
@@ -84,7 +85,7 @@ func (c *GofileClient) createPostFolderRequest(
 	if err != nil {
 		return nil, fmt.Errorf("creating post folder request: %w", err)
 	}
-	req.Header.Set(contentTypeHeader, "application/json")
+	req.Header.Set(contentTypeHeader, applicationJsonContentType)
 
 	return req, nil
 }
