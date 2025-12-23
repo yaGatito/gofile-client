@@ -10,8 +10,8 @@ import (
 )
 
 // GetFileInfo retrieves metadata information for the specified file.
-func (c *GofileClient) GetFileInfo(ctx context.Context, fileId string) (GetFileInfoResponseBody, error) {
-	req, err := c.createGetFileInfoRequest(ctx, fileId)
+func (c *GofileClient) GetFileInfo(ctx context.Context, websiteToken, fileId string) (GetFileInfoResponseBody, error) {
+	req, err := c.createGetFileInfoRequest(ctx, websiteToken, fileId)
 	if err != nil {
 		return GetFileInfoResponseBody{}, err
 	}

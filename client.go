@@ -14,7 +14,7 @@ import (
 //
 // Implementations must be safe for concurrent use.
 type Gofile interface {
-	GetFileInfo(ctx context.Context, fileId string) (GetFileInfoResponseBody, error)
+	GetFileInfo(ctx context.Context, websiteToken, fileId string) (GetFileInfoResponseBody, error)
 	DownloadFile(ctx context.Context, server, fileId, fileName string) (io.ReadCloser, error)
 	CreateFolder(ctx context.Context, parentFolderId, newFolderName string) (CreateFolderResponseBody, error)
 	UploadFile(ctx context.Context, folderId, fileName string, fileReader io.ReadCloser) (UploadFileResponseBody, error)

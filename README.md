@@ -9,7 +9,7 @@ Unofficial Go client for interacting with the [gofile.io](https://gofile.io) fil
 
 ## Features
 
-- Upload files (streaming multipart, no full buffering)
+- Upload files
 - Create folders
 - Download files
 - Retrieve file metadata
@@ -25,36 +25,25 @@ go get github.com/yaGatito/gofile-client
 ## Usage
 
 ```go
-package main
-
-import (
-    "context"
-    "log"
-    "os"
-
-    "github.com/yaGatito/gofile"
-)
-
-func main() {
+func uploadUsecase() {
     ctx := context.Background()
 
-    client := gofile.New("your-api-key", nil, nil)
-    if client == nil {
-        log.Fatal("Failed to create GoFile client, empty API key?")
-    }
+	client, err := gofile.New("your-api-key", nil, nil)
+	if err != nil {
+		log.Fatal("Failed to create client:", err)
+	}
 
-    file, err := os.Open("example.txt")
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer file.Close()
+	fileName := "sample.txt"
+	file, err := os.Open("./" + fileName)
+	if err != nil {
+		log.Fatal("Failed to open file:", err)
+	}
 
-    resp, err := client.UploadFile(ctx, "root", "example.txt", file)
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    log.Printf("File uploaded: %+v", resp)
+	postFileResponse, err := client.UploadFile(ctx, "your-folder-id", fileName, file)
+	if err != nil {
+		log.Fatal("Failed to upload file:", err)
+	}
+	log.Println("UploadFileResponseBody received:", postFileResponse)
 }
 ```
 
@@ -64,23 +53,19 @@ func main() {
 
 ```go
 type Gofile interface {
-    GetFileInfo(ctx context.Context, fileId string) (GetFileInfoResponseBody, error)
+    GetFileInfo(ctx context.Context, websiteToken, fileId string) (GetFileInfoResponseBody, error)
     DownloadFile(ctx context.Context, server, fileId, fileName string) (io.ReadCloser, error)
     CreateFolder(ctx context.Context, parentFolderId, newFolderName string) (CreateFolderResponseBody, error)
     UploadFile(ctx context.Context, folderId, fileName string, fileReader io.ReadCloser) (UploadFileResponseBody, error)
 }
 ```
 
-### Concurrency
-
-Client methods are safe for concurrent use.  
-Account and root folder IDs are cached internally.
-
 ## Known Limitations
 
-- GET endpoints temporarily unavailable for non-Premium users
-- Requires `X-Website-Token` header for some downloads
-- Some content moved to cold storage and requires Premium account import
+- Check traffic and storage limitations: [gofile.io/myprofile](https://gofile.io/myprofile).
+- Uploaded content may be moved to cold storage if inactive for a long time and requires importing into a Premium account to access.
+- Requires `X-Website-Token` header to download a file until it moved to cold storage.
+- GET endpoints unavailable for non-Premium users.
 
 ## License
 

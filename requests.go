@@ -7,12 +7,14 @@ import (
 	"net/url"
 )
 
+const websiteTokenHeader = "X-Website-Token"
+
 // createGetFileInfoRequest builds an HTTP GET request for retrieving
 // detailed metadata for the specified file ID.
-func (c *GofileClient) createGetFileInfoRequest(ctx context.Context, fileId string) (*http.Request, error) {
+func (c *GofileClient) createGetFileInfoRequest(ctx context.Context, wsToken, fileId string) (*http.Request, error) {
 	url := fmt.Sprintf("%s%s", contentsBaseURL, url.PathEscape(fileId))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	req.Header.Set("X-Website-Token", "4fd6sg89d7s6")
+	req.Header.Set(websiteTokenHeader, wsToken)
 	if err != nil {
 		return nil, fmt.Errorf("creating 'getFile' request: %w", err)
 	}
