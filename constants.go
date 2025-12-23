@@ -1,9 +1,9 @@
 package gofile
 
-const (
-	// RootFolder used to specify the root folder ID that is behind the scene.
-	RootFolder = "root"
+// RootFolder used to specify the root folder ID that is behind the scene.
+const RootFolder = "root"
 
+const (
 	postFolderEndpoint = "https://api.gofile.io/contents/createFolder"
 	contentsBaseURL    = "https://api.gofile.io/contents/"
 	accountsBaseURL    = "https://api.gofile.io/accounts/"
